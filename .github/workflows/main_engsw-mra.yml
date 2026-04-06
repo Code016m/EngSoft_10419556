@@ -2,37 +2,52 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
+# Nome do workflow (aparece na aba Actions do GitHub)
 name: Build and deploy Python app to Azure Web App - engsw-mra
 
+# Define quando o workflow será executado
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main  # Executa automaticamente quando há push na branch main
+  workflow_dispatch:  # Permite execução manual pelo GitHub
 
+# Definição dos jobs (tarefa do pipeline)
 jobs:
+  # JOB DE BUILD (construção da aplicação)
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Máquina virtual Linux usada para executar o job
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read #This is required for actions/checkout  # Permição necessária para ler o código do repositório 
 
     steps:
+      # Faz download (checkout) do código do repositório
       - uses: actions/checkout@v4
 
+      # STEP ADICIONADO (ANTES DO BUILD)
+      # Imprime uma mensagem no console da pipeline
+      - name: Mensagem inicial
+        run: echo "Iniciando o deploy do meu projeto!"
+
+      # Configura a versão do Python que será usada
       - name: Set up Python version
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.14'  # Define a versão do Python
 
       # 🛠️ Local Build Section (Optional)
-      # The following section in your workflow is designed to catch build issues early on the client side, before deployment. This can be helpful for debugging and validation. However, if this step significantly increases deployment time and early detection is not critical for your workflow, you may remove this section to streamline the deployment process.
+      # The following section in your workflow is designed to catch build issues early on the client side, before deployment.
+      # This can be helpful for debugging and validation.
+      # However, if this step significantly increases deployment time and early detection is not critical for your workflow, you may remove this section to streamline the deployment process.
       - name: Create and Start virtual environment and Install dependencies
         run: |
           python -m venv antenv
           source antenv/bin/activate
           pip install -r requirements.txt
                 
-      # By default, when you enable GitHub CI/CD integration through the Azure portal, the platform automatically sets the SCM_DO_BUILD_DURING_DEPLOYMENT application setting to true. This triggers the use of Oryx, a build engine that handles application compilation and dependency installation (e.g., pip install) directly on the platform during deployment. Hence, we exclude the antenv virtual environment directory from the deployment artifact to reduce the payload size. 
+      # By default, when you enable GitHub CI/CD integration through the Azure portal, the platform automatically sets the SCM_DO_BUILD_DURING_DEPLOYMENT application setting to true.
+      # This triggers the use of Oryx, a build engine that handles application compilation and dependency installation (e.g., pip install) directly on the platform during deployment.
+      # Hence, we exclude the antenv virtual environment directory from the deployment artifact to reduce the payload size. 
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
@@ -47,19 +62,22 @@ jobs:
       # 2. Refer to sample workflows for alternative deployment strategies: https://github.com/Azure/actions-workflow-samples/tree/master/AppService
       
 
+  # JOB DE DEPLOY (implantação no Azure)
   deploy:
-    runs-on: ubuntu-latest
-    needs: build
+    runs-on: ubuntu-latest  # Máquina onde o deploy será executado
+    needs: build  # Esse job só roda após o build terminar com sucesso
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write #This is required for requesting the JWT  # Necessário para autenticação com Azure (JWT)
+      contents: read #This is required for actions/checkout  # Permite acesso ao código
 
     steps:
+      # Baixa o artefato gerado no job de build
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: python-app
-      
+          name: python-app  # Nome do artefato que foi salvo anteriormente
+
+      # Faz login no Azure usando credenciais seguras (secrets)
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -67,10 +85,11 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_FCE18E5920E5498CBDC3501DAE48ABE7 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_F6B972F663574DA7950EF7AD0BF54110 }}
 
+      # Realiza o deploy da aplicação no Azure App Service
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
-        id: deploy-to-webapp
+        id: deploy-to-webapp  # ID do step (pode ser usado em outros passos)
         with:
-          app-name: 'engsw-mra'
-          slot-name: 'Production'
+          app-name: 'engsw-mra'  # Nome do App Service criado no Azure
+          slot-name: 'Production'  # Slot padrão de produção
           
